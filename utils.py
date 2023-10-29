@@ -41,6 +41,15 @@ def plot_word_distribution(df):
     plt.title('Distribution of Word Count')
     plt.show()
 
+def plot_label_distribution(df):
+    """
+    Plot the distribution of label count in each text.
+    """
+    labels = df['label'].value_counts()
+    labels.plot(kind='bar')
+    plt.title('Distribution of Label Count')
+    plt.show()
+
 def lower(text):
     """
     Transforms given text to lower case.
