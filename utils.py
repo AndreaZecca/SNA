@@ -15,7 +15,11 @@ from nltk.tokenize import word_tokenize
 from collections import OrderedDict
 import pickle
 
-nltk.download('punkt')
+# check if ntlk punkt is installed and download if not
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
 def load_dataframe():
     """
@@ -196,7 +200,6 @@ def split_dataframe(df, test_size=0.2):
     return df[:train_size], df[train_size:].reset_index(drop=True)
 
 def compute_pmi(text):
-    print('[DEBUG] text: ', text)
     bigram_measures = BigramAssocMeasures()
     finder = BigramCollocationFinder.from_words(word_tokenize(text))
     pmi = finder.score_ngrams(bigram_measures.pmi)
@@ -215,3 +218,39 @@ def compute_pmi(text):
         second_idx = word_to_idx[second_word]
         ppmi[first_idx, second_idx] = max(0, math.ceil(score*100)/100)
     return ppmi, word_to_idx, idx_to_word
+
+def plot_pmi(pmi, idx_to_word):
+    plt.figure(figsize=(20,10))
+    sns.heatmap(pmi, xticklabels=idx_to_word.values(), yticklabels=idx_to_word.values(), cmap='Blues')
+    plt.show()
+
+
+def get_nodes_weights(pmi, idx_to_word):
+    weights = {}
+    for i in range(len(pmi)):
+        weights[idx_to_word[i]] = sum(pmi[i,:])
+    return weights
+
+def plot_pmi_graph(pmi, idx_to_word, pmi_word_to_idx):
+    G = nx.Graph()
+    weights = get_nodes_weights(pmi, idx_to_word)
+    for i in pmi_word_to_idx:
+        if weights[i] > 0:
+            G.add_node(i, weight=weights[i])
+    for i in G.nodes():
+        for j in G.nodes():
+            i_idx = pmi_word_to_idx[i]
+            j_idx = pmi_word_to_idx[j]
+            if pmi[i_idx, j_idx] > 0:
+                G.add_edge(i, j, weight=pmi[i_idx, j_idx])
+    plt.figure(figsize=(30,15))
+    pos = nx.spring_layout(G)
+    nx.draw_networkx_nodes(G, pos, node_size=[G.nodes[i]['weight']*100 for i in G.nodes()])
+    nx.draw_networkx_edges(G, pos)
+    nx.draw_networkx_labels(G, pos)
+    plt.show()
+    
+def threshold_pmi(pmi, threshold):
+    pmi_copy = pmi.copy()
+    pmi_copy[pmi_copy < threshold] = 0
+    return pmi_copy
