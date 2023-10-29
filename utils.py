@@ -1,15 +1,21 @@
 import os
 import numpy as np
+import math
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
+import networkx as nx
 import re
 from functools import reduce
 import nltk
 from nltk.corpus import stopwords
+from nltk.collocations import BigramCollocationFinder, BigramAssocMeasures
+from nltk.tokenize import word_tokenize
 from collections import OrderedDict
 import pickle
+
+nltk.download('punkt')
 
 def load_dataframe():
     """
@@ -41,14 +47,26 @@ def plot_word_distribution(df):
     plt.title('Distribution of Word Count')
     plt.show()
 
-def plot_label_distribution(df):
+def plot_label_distribution(dfs, labels):
     """
-    Plot the distribution of label count in each text.
+    Plot the distribution of word count in each text.
     """
-    labels = df['label'].value_counts()
-    labels.plot(kind='bar')
-    plt.title('Distribution of Label Count')
+    if len(dfs) != len(labels):
+        raise Exception("Number of dataframes and labels must be equal.")
+    plt.figure(figsize=(12,6))
+    i = 1
+    for df, subtitle in zip(dfs, labels):
+        plt.subplot(1, len(dfs), i)
+        plt.title(subtitle)
+        label_count = df['label'].value_counts()
+        # sort label_count by name
+        label_count = label_count.sort_index()
+        # plot the label count without the label description
+        label_count.plot(kind='bar')
+        i += 1
+    # plt.legend()
     plt.show()
+
 
 def lower(text):
     """
@@ -176,3 +194,24 @@ def split_dataframe(df, test_size=0.2):
     df = df.sample(frac=1).reset_index(drop=True)
     train_size = int((1-test_size)*len(df))
     return df[:train_size], df[train_size:].reset_index(drop=True)
+
+def compute_pmi(text):
+    print('[DEBUG] text: ', text)
+    bigram_measures = BigramAssocMeasures()
+    finder = BigramCollocationFinder.from_words(word_tokenize(text))
+    pmi = finder.score_ngrams(bigram_measures.pmi)
+    tokens = list(set(word_tokenize(text)))
+    n = len(tokens)
+    ppmi = np.zeros((n,n))
+    word_to_idx = {}
+    idx_to_word = {}
+    for i, token in enumerate(tokens):
+        word_to_idx[token] = i
+        idx_to_word[i] = token
+    for bigram, score in pmi:
+        first_word = bigram[0]
+        second_word = bigram[1]
+        first_idx = word_to_idx[first_word]
+        second_idx = word_to_idx[second_word]
+        ppmi[first_idx, second_idx] = max(0, math.ceil(score*100)/100)
+    return ppmi, word_to_idx, idx_to_word
