@@ -216,7 +216,7 @@ def compute_pmi(text):
         second_word = bigram[1]
         first_idx = word_to_idx[first_word]
         second_idx = word_to_idx[second_word]
-        ppmi[first_idx, second_idx] = max(0, math.ceil(score*100)/100)
+        ppmi[first_idx, second_idx] = max(0, np.log(score))#math.ceil(score*100)/100)
     return ppmi, word_to_idx, idx_to_word
 
 def plot_pmi(pmi, idx_to_word):
