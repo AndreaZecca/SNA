@@ -14,6 +14,11 @@ from nltk.collocations import BigramCollocationFinder, BigramAssocMeasures
 from nltk.tokenize import word_tokenize
 from collections import OrderedDict
 import pickle
+import warnings
+warnings.filterwarnings("ignore")
+
+# setting seeds for reproducibility
+np.random.seed(69)
 
 # check if ntlk punkt is installed and download if not
 try:
@@ -216,7 +221,7 @@ def compute_pmi(text):
         second_word = bigram[1]
         first_idx = word_to_idx[first_word]
         second_idx = word_to_idx[second_word]
-        ppmi[first_idx, second_idx] = max(0, np.log(score))#math.ceil(score*100)/100)
+        ppmi[first_idx, second_idx] = max(0, math.ceil(score*100)/100)
     return ppmi, word_to_idx, idx_to_word
 
 def plot_pmi(pmi, idx_to_word):
@@ -254,3 +259,63 @@ def threshold_pmi(pmi, threshold):
     pmi_copy = pmi.copy()
     pmi_copy[pmi_copy < threshold] = 0
     return pmi_copy
+
+def compute_centrality(pmi_matrix, centrality='degree'):
+    G = nx.from_numpy_array(pmi_matrix)
+    if centrality == 'degree':
+        return nx.degree_centrality(G)
+    elif centrality == 'betweenness':
+        return nx.betweenness_centrality(G)
+    elif centrality == 'closeness':
+        return nx.closeness_centrality(G)
+    elif centrality == 'eigenvector':
+        return nx.eigenvector_centrality_numpy(G)
+    elif centrality == 'katz':
+        return nx.katz_centrality_numpy(G)
+    else:
+        raise Exception("Centrality not supported.")
+
+
+def compute_threshold(pmi, ratio=.5):
+    """
+    Computes an appropiate threshold for the PMI matrix
+    """
+    # compute the mean of the PMI matrix
+    min_pmi = np.min(pmi[pmi > 0])
+    mean_pmi = np.mean(pmi[pmi > 0])
+    threshold = min_pmi + ratio*(mean_pmi-min_pmi)
+    return threshold
+
+def get_words_by_idxs(idxs, I2W):
+    return [I2W[i] for i in idxs]
+
+def compute_similarity_score(PMIs, idxs, I2Ws, W2Is):
+    """
+    Stefano era molto scettico su questo metodo innovativo!
+    """
+    pmi1, pmi2 = PMIs
+    idx1, idx2 = idxs
+    I2W1, I2W2 = I2Ws
+    W2I1, W2I2 = W2Is
+    words1 = get_words_by_idxs(idx1, I2W1)
+    words2 = get_words_by_idxs(idx2, I2W2)
+    # intersection of words
+    intersection = set(words1).intersection(set(words2))
+    score = 1
+    for word1 in intersection:
+        for word2 in intersection:
+            if word1 != word2:
+                idx_1_1 = W2I1[word1]
+                idx_1_2 = W2I1[word2]
+
+                idx_2_1 = W2I2[word1]
+                idx_2_2 = W2I2[word2]
+
+                score1 = pmi1[idx_1_1, idx_1_2]
+                score2 = pmi2[idx_2_1, idx_2_2]
+                
+                score += score1+score2
+    return 1/score
+
+def get_index_from_measure_matrix(measure_matrix):
+    return [x[0] for x in measure_matrix]
