@@ -254,6 +254,21 @@ def plot_pmi_graph(pmi, idx_to_word, pmi_word_to_idx):
     nx.draw_networkx_edges(G, pos)
     nx.draw_networkx_labels(G, pos)
     plt.show()
+    return G
+
+def get_graph_from_pmi(pmi, idx_to_word, pmi_word_to_idx):
+    G = nx.Graph()
+    weights = get_nodes_weights(pmi, idx_to_word)
+    for i in pmi_word_to_idx:
+        if weights[i] > 0:
+            G.add_node(i, weight=weights[i])
+    for i in G.nodes():
+        for j in G.nodes():
+            i_idx = pmi_word_to_idx[i]
+            j_idx = pmi_word_to_idx[j]
+            if pmi[i_idx, j_idx] > 0:
+                G.add_edge(i, j, weight=pmi[i_idx, j_idx])
+    return G
     
 def threshold_pmi(pmi, threshold):
     pmi_copy = pmi.copy()
